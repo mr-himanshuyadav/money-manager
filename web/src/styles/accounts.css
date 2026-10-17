@@ -1,0 +1,11 @@
+/* Accounts workspace */
+.account-stats { margin-top: 10px; }
+.account-group-panel { margin-top: 18px; }
+.group-total { font-size: 16px; font-variant-numeric: tabular-nums; }
+.muted-id { color: #999; font-size: 11px; }
+.account-note { margin-top: 18px; }
+.account-note > strong { font-size: 12px; }
+.account-note p { line-height: 1.6; }
+.account-warning { color: #775b18; background: #fff8e6; border: 1px solid #f0e2b9; border-radius: 8px; padding: 11px; font-size: 11px; line-height: 1.5; }
+@media (max-width: 800px) { .group-total { font-size: 13px; } }
+
