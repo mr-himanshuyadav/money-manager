@@ -1,4 +1,4 @@
-import { Activity, ArrowLeftRight, Landmark, Pencil, RefreshCw, Wallet, Trash2 } from "lucide-react";
+import { Activity, ArrowLeftRight, CirclePlus, Landmark, Pencil, RefreshCw, Wallet, Trash2 } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
 import type { InitPayload, Transaction } from "../types/index.ts";
 import { money } from "../utils/finance.ts";
