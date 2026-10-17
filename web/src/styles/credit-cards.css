@@ -1,0 +1,30 @@
+.credit-card-toolbar { align-items: center; }
+.credit-card-stats { margin-bottom: 18px; }
+.credit-card-list-panel { margin-top: 18px; }
+.credit-card-group + .credit-card-group { border-top: 1px solid #eee; margin-top: 24px; padding-top: 22px; }
+.credit-card-group-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.credit-card-group-heading h3 { margin: 0; font-size: 13px; }
+.credit-card-group-heading > strong { font-size: 13px; font-variant-numeric: tabular-nums; }
+.credit-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.credit-card-item { min-width: 0; border: 1px solid #e6e6e6; border-radius: 12px; padding: 17px; background: linear-gradient(145deg, #fff 0%, #fafafa 100%); }
+.credit-card-item-top { display: flex; justify-content: space-between; align-items: center; }
+.credit-card-chip { width: 39px; height: 39px; border-radius: 10px; background: #222; color: white; display: grid; place-items: center; }
+.credit-card-name { margin-top: 17px; font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+.credit-card-balance-label { margin-top: 18px; color: #888; font-size: 9px; font-weight: 700; letter-spacing: 1px; }
+.credit-card-balance { margin-top: 5px; font-size: clamp(21px, 2.2vw, 27px); font-weight: 750; letter-spacing: -.8px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.credit-card-meta { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 14px 0; margin-top: 10px; border-top: 1px solid #eee; border-bottom: 1px solid #eee; }
+.credit-card-meta span, .credit-card-schedule span { display: inline-flex; align-items: center; gap: 6px; color: #888; font-size: 11px; }
+.credit-card-meta strong { font-size: 11px; text-align: right; overflow-wrap: anywhere; }
+.credit-card-schedule { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 13px; }
+.credit-card-schedule > div { display: grid; gap: 8px; }
+.credit-card-schedule strong { font-size: 13px; }
+.credit-card-previous { display: flex; justify-content: space-between; gap: 10px; margin-top: 15px; padding-top: 13px; border-top: 1px solid #eee; font-size: 11px; }
+.credit-card-previous span { color: #888; }
+.credit-card-previous strong { font-variant-numeric: tabular-nums; }
+.credit-card-empty { padding: 40px 12px; text-align: center; color: #888; }
+.credit-card-empty > svg { margin-bottom: 12px; }
+.credit-card-empty strong { display: block; color: #444; font-size: 13px; }
+.credit-card-empty p { max-width: 400px; margin: 7px auto 0; line-height: 1.6; }
+.credit-card-note { margin-top: 18px; }
+.field-hint { display: block; margin-top: 6px; color: #888; font-size: 10px; line-height: 1.5; }
+@media (max-width: 1100px) { .credit-card-grid { grid-template-columns: 1fr; } }

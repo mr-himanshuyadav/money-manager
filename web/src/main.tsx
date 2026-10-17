@@ -6,6 +6,7 @@ import "./styles/base.css";
 import "./styles/transactions.css";
 import "./styles/accounts.css";
 import "./styles/connection.css";
+import "./styles/credit-cards.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

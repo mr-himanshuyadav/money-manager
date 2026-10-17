@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { Activity, ArrowDownLeft, ArrowLeftRight, Check, Landmark, RefreshCw, Wallet, X } from "lucide-react";
+import { Activity, ArrowDownLeft, ArrowLeftRight, Check, CreditCard, Landmark, RefreshCw, Wallet, X } from "lucide-react";
 import type { Account, AccountFormState, AccountsPayload, DashboardData, FormState, InitPayload, SortOrder, SummaryData, Transaction, TransferFormState } from "./types/index.ts";
 import { api, blankForm, errorMessage, iso, money, initialEnd, initialStart } from "./utils/finance.ts";
 import OverviewPage from "./pages/OverviewPage.tsx";
 import TransactionsPage from "./pages/TransactionsPage.tsx";
 import AccountsPage from "./pages/AccountsPage.tsx";
 import TransfersPage from "./pages/TransfersPage.tsx";
+import CreditCardsPage from "./pages/CreditCardsPage.tsx";
 
 export default function App() {
-  const [page, setPage] = useState<"Overview" | "Transactions" | "Accounts" | "Transfers">("Overview");
+  const [page, setPage] = useState<"Overview" | "Transactions" | "Accounts" | "Credit Cards" | "Transfers">("Overview");
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -307,12 +308,13 @@ export default function App() {
         <button className={`nav-item ${page === "Overview" ? "active" : ""}`} onClick={() => setPage("Overview")}><Activity size={18} /> Overview</button>
         <button className={`nav-item ${page === "Transactions" ? "active" : ""}`} onClick={() => setPage("Transactions")}><ArrowDownLeft size={18} /> Transactions</button>
         <button className={`nav-item ${page === "Accounts" ? "active" : ""}`} onClick={() => setPage("Accounts")}><Landmark size={18} /> Accounts</button>
+        <button className={`nav-item ${page === "Credit Cards" ? "active" : ""}`} onClick={() => setPage("Credit Cards")}><CreditCard size={18} /> Credit Cards</button>
         <button className={`nav-item ${page === "Transfers" ? "active" : ""}`} onClick={() => setPage("Transfers")}><ArrowLeftRight size={18} /> Transfers</button>
         <div className="sidebar-bottom"><span className={`status-dot ${connected ? "online" : ""}`} />{connected ? "Phone connected" : "Not connected"}</div>
       </aside>
 
       <section className="workspace">
-        <header className="topbar"><div className="topbar-title"><div className="eyebrow">PERSONAL FINANCE</div><h1>{page}</h1><p>{page === "Overview" ? "A live snapshot of your financial position." : page === "Transactions" ? "Create, find, update and remove income or expense records." : page === "Accounts" ? "Manage your bank accounts, cash wallets and account balances." : "Move money between your accounts and review transfer history."}</p></div>
+        <header className="topbar"><div className="topbar-title"><div className="eyebrow">PERSONAL FINANCE</div><h1>{page}</h1><p>{page === "Overview" ? "A live snapshot of your financial position." : page === "Transactions" ? "Create, find, update and remove income or expense records." : page === "Accounts" ? "Manage your bank accounts, cash wallets and account balances." : page === "Credit Cards" ? "Track unpaid balances, linked payment accounts and billing dates." : "Move money between your accounts and review transfer history."}</p></div>
           <div className="topbar-actions">
             {connectionConfigured ? <form className="connection-inline-form" onSubmit={e => void saveConnection(e)}><label className="connection-inline-label"><span>Money Manager server</span><input aria-label="Money Manager server address" type="url" required value={connectionUrl} onChange={e => setConnectionUrl(e.target.value)} placeholder="http://192.168.1.100:8888" /></label><button type="submit" className="secondary-button connection-save-button" disabled={connectionSaving || !connectionUrl.trim()}>{connectionSaving ? <><RefreshCw size={14} className="spin" /> Testing…</> : connectionUrl.trim() === savedConnectionUrl ? "Reconnect" : "Save address"}</button></form> : <span className="connection-hint">Connect your Money Manager server to get started</span>}
             <button className="refresh-button" onClick={() => { setNotice(""); void refresh(); }} disabled={!connectionConfigured || loading}><RefreshCw size={16} className={loading ? "spin" : ""} /> Refresh</button>
@@ -338,6 +340,8 @@ export default function App() {
         /> : page === "Accounts" ? <AccountsPage
           accountGroups={accountGroups} flattenedAccounts={flattenedAccounts} accountsData={accountsData}
           loading={loading} onCreate={openAccountCreate} onEdit={openAccountEdit} onDelete={account => void deleteAccount(account)}
+        /> : page === "Credit Cards" ? <CreditCardsPage
+          assetNames={init?.assetNames || []} onError={setError} onNotice={setNotice}
         /> : <TransfersPage
           transferRows={transferRows} startDate={startDate} endDate={endDate} setStartDate={setStartDate}
           setEndDate={setEndDate} init={init} accountName={accountName} txLoading={txLoading} loadTx={loadTx}
