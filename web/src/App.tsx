@@ -82,6 +82,11 @@ export default function App() {
   const [notice, setNotice] = useState("");
   const [connected, setConnected] = useState(false);
   const [mbid, setMbid] = useState("");
+  const [connectionUrl, setConnectionUrl] = useState("");
+  const [savedConnectionUrl, setSavedConnectionUrl] = useState("");
+  const [connectionConfigured, setConnectionConfigured] = useState(false);
+  const [connectionLoaded, setConnectionLoaded] = useState(false);
+  const [connectionSaving, setConnectionSaving] = useState(false);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -112,11 +117,30 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (page === "Accounts") void loadAccounts();
-  }, [page, loadAccounts]);
+    let active = true;
+    void fetch("/api/connection").then(async response => {
+      const json = await response.json();
+      if (!response.ok || !json.success) throw new Error(json.error || "Could not load the saved server address.");
+      if (!active) return;
+      const data = json.data as { baseUrl?: string; configured?: boolean };
+      setConnectionUrl(data.baseUrl || "");
+      setSavedConnectionUrl(data.baseUrl || "");
+      setConnectionConfigured(Boolean(data.configured));
+      setConnectionLoaded(true);
+    }).catch(e => {
+      if (!active) return;
+      setConnectionLoaded(true);
+      setError(errorMessage(e));
+    });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (page === "Accounts" && connectionConfigured) void loadAccounts();
+  }, [page, loadAccounts, connectionConfigured]);
 
   const refresh = useCallback(async () => {
-    setLoading(true); setError(""); setNotice("");
+    setLoading(true); setError("");
     try {
       const [initResult, overview] = await Promise.all([
         api<InitPayload>("init_get_data"), api<DashboardData>("dashboard_get_overview"),
@@ -132,8 +156,36 @@ export default function App() {
     finally { setLoading(false); }
   }, [startDate, endDate]);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { if (connectionConfigured) void refresh(); }, [refresh, connectionConfigured]);
   useEffect(() => { setPageNo(1); }, [query, typeFilter, categoryFilter, accountFilter, sortOrder, startDate, endDate, pageSize]);
+
+  async function saveConnection(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const requestedUrl = connectionUrl.trim();
+    if (!requestedUrl) { setError("Enter your Money Manager server address."); return; }
+    const wasConfigured = connectionConfigured;
+    setConnectionSaving(true); setError(""); setNotice("");
+    try {
+      const response = await fetch("/api/connection", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ baseUrl: requestedUrl }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success) throw new Error(json.error || "Could not connect to Money Manager.");
+      const data = json.data as { baseUrl: string; configured: boolean };
+      setConnectionUrl(data.baseUrl);
+      setSavedConnectionUrl(data.baseUrl);
+      setConnectionConfigured(true);
+      setConnected(true);
+      if (wasConfigured) await refresh();
+      setNotice("Connection verified and saved on this computer.");
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setConnectionSaving(false);
+    }
+  }
 
   const allCategories = useMemo(() => [ ...(init?.categories?.income || []), ...(init?.categories?.expense || []) ], [init]);
   const currentCategories = form?.kind === "0" ? (init?.categories?.income || []) : (init?.categories?.expense || []);
@@ -267,13 +319,16 @@ export default function App() {
       </aside>
 
       <section className="workspace">
-        <header className="topbar"><div><div className="eyebrow">PERSONAL FINANCE</div><h1>{page}</h1><p>{page === "Overview" ? "A live snapshot of your financial position." : page === "Transactions" ? "Create, find, update and remove income or expense records." : "Manage your bank accounts, cash wallets and account balances."}</p></div>
-          <button className="refresh-button" onClick={() => void refresh()} disabled={loading}><RefreshCw size={16} className={loading ? "spin" : ""} /> Refresh</button>
+        <header className="topbar"><div className="topbar-title"><div className="eyebrow">PERSONAL FINANCE</div><h1>{page}</h1><p>{page === "Overview" ? "A live snapshot of your financial position." : page === "Transactions" ? "Create, find, update and remove income or expense records." : "Manage your bank accounts, cash wallets and account balances."}</p></div>
+          <div className="topbar-actions">
+            {connectionConfigured ? <form className="connection-inline-form" onSubmit={e => void saveConnection(e)}><label className="connection-inline-label"><span>Money Manager server</span><input aria-label="Money Manager server address" type="url" required value={connectionUrl} onChange={e => setConnectionUrl(e.target.value)} placeholder="http://192.168.1.100:8888" /></label><button type="submit" className="secondary-button connection-save-button" disabled={connectionSaving || !connectionUrl.trim()}>{connectionSaving ? <><RefreshCw size={14} className="spin" /> Testing…</> : connectionUrl.trim() === savedConnectionUrl ? "Reconnect" : "Save address"}</button></form> : <span className="connection-hint">Connect your Money Manager server to get started</span>}
+            <button className="refresh-button" onClick={() => { setNotice(""); void refresh(); }} disabled={!connectionConfigured || loading}><RefreshCw size={16} className={loading ? "spin" : ""} /> Refresh</button>
+          </div>
         </header>
         {error && <div className="error-banner"><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError("")}><X size={15} /></button></div>}
         {notice && <div className="success-banner"><Check size={16} /><span>{notice}</span><button aria-label="Dismiss message" onClick={() => setNotice("")}><X size={15} /></button></div>}
 
-        {page === "Overview" ? <>
+        {!connectionLoaded ? <section className="panel connection-setup"><div className="eyebrow">INITIAL SETUP</div><h2>Loading saved connection…</h2><p>Checking whether this computer already has a Money Manager address saved.</p></section> : !connectionConfigured ? <section className="panel connection-setup"><div className="eyebrow">INITIAL SETUP</div><h2>Connect to Money Manager</h2><p>Start PC Manager in the Money Manager app, then enter the IP address and port shown on your phone.</p><form className="connection-setup-form" onSubmit={e => void saveConnection(e)}><label>Server address<input aria-label="Money Manager server address" type="url" required value={connectionUrl} onChange={e => setConnectionUrl(e.target.value)} placeholder="http://192.168.1.100:8888" /></label><button type="submit" className="primary-button" disabled={connectionSaving || !connectionUrl.trim()}>{connectionSaving ? <><RefreshCw size={15} className="spin" /> Testing connection…</> : <><Check size={15} /> Connect and save</>}</button></form><div className="connection-help">Example: <code>http://192.168.1.100:8888</code>. The address is saved only on this computer and is not committed to GitHub.</div></section> : page === "Overview" ? <>
           <section className="section-heading"><div><h2>Your finances</h2><p>Live data from your Money Manager app.</p></div><div className="date-filters"><label>From<input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} /></label><label>To<input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} /></label></div></section>
           <section className="stats-grid">
             <article className="stat-card primary-card"><span className="stat-label">TOTAL ASSETS</span><Wallet size={19} /><strong>{assets ? money(assets.totalAsset) : "—"}</strong><small>Overall financial position</small></article>
