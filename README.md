@@ -82,6 +82,12 @@ Add the server to your client's MCP config (e.g. `claude_desktop_config.json`):
 
 > 📖 **Advanced users** — running from source, environment variables, config files, and per-client setup are covered in the [Setup Guide](docs/SETUP.md).
 
+## 🖥️ Local Dashboard
+
+This fork also includes a local React dashboard for managing transactions and accounts. Start it with `npm run dev`, then enter your phone's current PC Manager address in the dashboard. The address is saved locally (not in Git or `.env`) and can be edited in the header whenever the phone's IP or port changes.
+
+See [Local Dashboard Setup](docs/LOCAL_DASHBOARD.md) for requirements, startup steps, and troubleshooting.
+
 ## 📋 Tools
 
 | Category     | Tools                                                                                |
