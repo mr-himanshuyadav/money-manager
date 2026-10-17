@@ -38,3 +38,12 @@ Session cookies are stored in endpoint-specific, Git-ignored files so changing t
 - If connection testing fails, verify that PC Manager is running, the phone and computer are on the same Wi-Fi, and the address includes the correct port.
 - The dashboard does not save an address that fails its initialization request. A failed change leaves the previously saved address and active client unchanged.
 - Do not commit `.env`, local connection files, session cookies, or exported financial data.
+
+## Dashboard workspaces
+
+- **Overview** — financial position, cash flow, and asset trend.
+- **Transactions** — create, review, edit, and delete income and expense records.
+- **Accounts** — review account groups and balances, and manage accounts.
+- **Transfers** — move money between two different accounts and review transfer history for the selected date range. Editing a transfer may create a new transfer ID because of the upstream Money Manager API behaviour; the dashboard shows this warning before saving.
+
+These actions update your connected Money Manager data. Check the selected accounts and amount before recording a transfer, and use delete actions carefully.
