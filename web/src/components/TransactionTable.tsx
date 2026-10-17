@@ -1,4 +1,6 @@
 import type { Transaction } from "../types/index.ts";
+import { Pencil, Trash2 } from "lucide-react";
+import { money } from "../utils/finance.ts";
 
 export default function TransactionTable({ rows, accountName, onEdit, onDelete, loading = false }: {
   rows: Transaction[]; accountName: (id: string) => string; onEdit: (tx: Transaction) => void; onDelete: (tx: Transaction) => void; loading?: boolean;
