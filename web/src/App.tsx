@@ -356,7 +356,6 @@ export default function App() {
   const pageRows = visibleTransactions.slice((pageNo - 1) * pageSize, pageNo * pageSize);
   const assets = dashboard?.assetSummary;
   const totals = summary?.summary;
-  const incomeCategories = init?.categories?.income || [];
 
   return (
     <main className="app-shell">
