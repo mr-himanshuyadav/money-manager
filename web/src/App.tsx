@@ -3,7 +3,7 @@ import {
   Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import {
-  Activity, ArrowDownLeft, ArrowDownUp, ArrowUpRight, Check,
+  Activity, ArrowDownLeft, ArrowDownUp, ArrowLeftRight, ArrowUpRight, Check,
   ChevronDown, CirclePlus, Filter, Landmark, Pencil, RefreshCw, Search, Trash2, Wallet, X,
 } from "lucide-react";
 import "./App.css";
@@ -16,6 +16,7 @@ type Account = { assetId: string; assetGroupId?: string; assetType: "group" | "i
 type AccountGroup = { assetGroupId: string; assetType: "group"; assetName: string; assetMoney: number; color?: string; children: Account[] };
 type AccountsPayload = { assetGroups?: AccountGroup[]; totalBalance?: number };
 type AccountFormState = { assetId?: string; assetGroupId: string; assetName: string; assetMoney: string };
+type TransferFormState = { id?: string; moveDate: string; fromAssetId: string; toAssetId: string; moveMoney: string; moneyContent: string; mbDetailContent: string };
 type InitPayload = {
   initData: { mbid: string; initStartDate?: string; initEndDate?: string };
   categories?: { income?: Category[]; expense?: Category[] };
@@ -65,13 +66,15 @@ function blankForm(kind: "0" | "1" = "1"): FormState {
 }
 
 export default function App() {
-  const [page, setPage] = useState<"Overview" | "Transactions" | "Accounts">("Overview");
+  const [page, setPage] = useState<"Overview" | "Transactions" | "Accounts" | "Transfers">("Overview");
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accountsData, setAccountsData] = useState<AccountsPayload | null>(null);
   const [accountForm, setAccountForm] = useState<AccountFormState | null>(null);
   const [accountSaving, setAccountSaving] = useState(false);
+  const [transferForm, setTransferForm] = useState<TransferFormState | null>(null);
+  const [transferSaving, setTransferSaving] = useState(false);
   const [init, setInit] = useState<InitPayload | null>(null);
   const [startDate, setStartDate] = useState(initialStart);
   const [endDate, setEndDate] = useState(initialEnd);
@@ -192,6 +195,7 @@ export default function App() {
   const selectedCategory = currentCategories.find(c => c.mcid === form?.mcid);
   const subcategories = selectedCategory?.mcsc || [];
   const accountName = (id: string) => init?.assetNames?.find(a => a.assetId === id)?.assetName || id || "—";
+  const transferRows = useMemo(() => transactions.filter(tx => tx.inOutCode !== "0" && tx.inOutCode !== "1"), [transactions]);
 
   const visibleTransactions = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -290,6 +294,52 @@ export default function App() {
     finally { setAccountSaving(false); }
   }
 
+  function openTransferCreate() {
+    const accounts = init?.assetNames || [];
+    if (accounts.length < 2) { setError("Create at least two accounts before recording a transfer."); return; }
+    setTransferForm({ moveDate: iso(new Date()), fromAssetId: accounts[0].assetId, toAssetId: accounts[1].assetId, moveMoney: "", moneyContent: "", mbDetailContent: "" });
+    setError("");
+  }
+
+  function openTransferEdit(tx: Transaction) {
+    const toAssetId = tx.toAssetId || tx.targetAssetId || "";
+    if (!toAssetId) { setError("The destination account could not be identified for this transfer."); return; }
+    setTransferForm({ id: tx.id, moveDate: String(tx.mbDate || "").slice(0, 10), fromAssetId: tx.assetId, toAssetId, moveMoney: String(tx.mbCash ?? ""), moneyContent: tx.mbContent || "", mbDetailContent: tx.mbDetailContent || "" });
+    setError("");
+  }
+
+  async function saveTransfer(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!transferForm) return;
+    if (!transferForm.fromAssetId || !transferForm.toAssetId || transferForm.fromAssetId === transferForm.toAssetId) {
+      setError("Choose two different accounts for the transfer."); return;
+    }
+    const amount = Number(transferForm.moveMoney);
+    if (!Number.isFinite(amount) || amount <= 0) { setError("Enter an amount greater than zero."); return; }
+    const from = init?.assetNames?.find(a => a.assetId === transferForm.fromAssetId);
+    const to = init?.assetNames?.find(a => a.assetId === transferForm.toAssetId);
+    if (!from || !to) { setError("The selected account could not be found. Refresh and try again."); return; }
+    setTransferSaving(true); setError(""); setNotice("");
+    try {
+      const result = await api<{ message?: string }>(transferForm.id ? "transfer_update" : "transfer_create", {
+        ...(transferForm.id ? { id: transferForm.id } : {}),
+        moveDate: transferForm.moveDate,
+        fromAssetId: from.assetId, fromAssetName: from.assetName,
+        toAssetId: to.assetId, toAssetName: to.assetName,
+        moveMoney: amount,
+        ...(transferForm.moneyContent.trim() ? { moneyContent: transferForm.moneyContent.trim() } : {}),
+        ...(transferForm.mbDetailContent.trim() ? { mbDetailContent: transferForm.mbDetailContent.trim() } : {}),
+      });
+      const wasEdit = Boolean(transferForm.id);
+      setTransferForm(null);
+      await refresh();
+      setNotice(wasEdit
+        ? (result.message || "Transfer update submitted. The Money Manager API may create a new transfer ID.")
+        : (result.message || "Transfer recorded."));
+    } catch (e) { setError(errorMessage(e)); }
+    finally { setTransferSaving(false); }
+  }
+
   async function deleteAccount(account: Account & { groupName?: string }) {
     if (!window.confirm(`Delete account “${account.assetName}”? This action cannot be undone and may be rejected if the account is in use.`)) return;
     setError(""); setNotice("");
@@ -315,11 +365,12 @@ export default function App() {
         <button className={`nav-item ${page === "Overview" ? "active" : ""}`} onClick={() => setPage("Overview")}><Activity size={18} /> Overview</button>
         <button className={`nav-item ${page === "Transactions" ? "active" : ""}`} onClick={() => setPage("Transactions")}><ArrowDownLeft size={18} /> Transactions</button>
         <button className={`nav-item ${page === "Accounts" ? "active" : ""}`} onClick={() => setPage("Accounts")}><Landmark size={18} /> Accounts</button>
+        <button className={`nav-item ${page === "Transfers" ? "active" : ""}`} onClick={() => setPage("Transfers")}><ArrowLeftRight size={18} /> Transfers</button>
         <div className="sidebar-bottom"><span className={`status-dot ${connected ? "online" : ""}`} />{connected ? "Phone connected" : "Not connected"}</div>
       </aside>
 
       <section className="workspace">
-        <header className="topbar"><div className="topbar-title"><div className="eyebrow">PERSONAL FINANCE</div><h1>{page}</h1><p>{page === "Overview" ? "A live snapshot of your financial position." : page === "Transactions" ? "Create, find, update and remove income or expense records." : "Manage your bank accounts, cash wallets and account balances."}</p></div>
+        <header className="topbar"><div className="topbar-title"><div className="eyebrow">PERSONAL FINANCE</div><h1>{page}</h1><p>{page === "Overview" ? "A live snapshot of your financial position." : page === "Transactions" ? "Create, find, update and remove income or expense records." : page === "Accounts" ? "Manage your bank accounts, cash wallets and account balances." : "Move money between your accounts and review transfer history."}</p></div>
           <div className="topbar-actions">
             {connectionConfigured ? <form className="connection-inline-form" onSubmit={e => void saveConnection(e)}><label className="connection-inline-label"><span>Money Manager server</span><input aria-label="Money Manager server address" type="url" required value={connectionUrl} onChange={e => setConnectionUrl(e.target.value)} placeholder="http://192.168.1.100:8888" /></label><button type="submit" className="secondary-button connection-save-button" disabled={connectionSaving || !connectionUrl.trim()}>{connectionSaving ? <><RefreshCw size={14} className="spin" /> Testing…</> : connectionUrl.trim() === savedConnectionUrl ? "Reconnect" : "Save address"}</button></form> : <span className="connection-hint">Connect your Money Manager server to get started</span>}
             <button className="refresh-button" onClick={() => { setNotice(""); void refresh(); }} disabled={!connectionConfigured || loading}><RefreshCw size={16} className={loading ? "spin" : ""} /> Refresh</button>
@@ -362,8 +413,35 @@ export default function App() {
           <section className="stats-grid account-stats"><article className="stat-card primary-card"><span className="stat-label">TOTAL ACCOUNT BALANCE</span><Wallet size={19} /><strong>{money(Number(accountsData?.totalBalance ?? flattenedAccounts.reduce((sum, a) => sum + (Number(a.assetMoney) || 0), 0)))}</strong><small>Balance reported by Money Manager</small></article><article className="stat-card"><span className="stat-label">ACCOUNT GROUPS</span><Landmark size={19} /><strong>{accountGroups.length}</strong><small>Groups from your Money Manager setup</small></article><article className="stat-card"><span className="stat-label">ACCOUNTS</span><Wallet size={19} /><strong>{flattenedAccounts.length}</strong><small>Individual accounts and wallets</small></article><article className="stat-card"><span className="stat-label">DATA SOURCE</span><Activity size={19} /><strong>Live</strong><small>Fetched from your connected server</small></article></section>
           {accountGroups.length ? accountGroups.map(group => <section className="panel transactions-panel account-group-panel" key={group.assetGroupId}><div className="panel-heading"><div><h2>{group.assetName}</h2><p>{(group.children || []).length} accounts in this group</p></div><strong className="group-total">{money(Number(group.assetMoney) || (group.children || []).reduce((sum, a) => sum + (Number(a.assetMoney) || 0), 0))}</strong></div><div className="table-wrap"><table><thead><tr><th>Account name</th><th>Account ID</th><th className="amount">Balance</th><th className="actions-heading">Actions</th></tr></thead><tbody>{(group.children || []).map(account => <tr key={account.assetId}><td><strong className="tx-title">{account.assetName}</strong></td><td><span className="muted-id">{account.assetId}</span></td><td className="amount">{money(Number(account.assetMoney) || 0)}</td><td><div className="row-actions"><button className="icon-button" onClick={() => openAccountEdit({ ...account, assetGroupId: group.assetGroupId })} title="Edit account" aria-label={`Edit ${account.assetName}`}><Pencil size={15} /></button><button className="icon-button danger-action" onClick={() => void deleteAccount({ ...account, assetGroupId: group.assetGroupId })} title="Delete account" aria-label={`Delete ${account.assetName}`}><Trash2 size={15} /></button></div></td></tr>)}{!group.children?.length && <tr><td colSpan={4} className="empty-state">No accounts in this group.</td></tr>}</tbody></table></div></section>) : <section className="panel empty-state">{loading ? "Loading accounts…" : "No account groups were returned by Money Manager."}</section>}
           <section className="panel account-note"><strong>Account changes affect your real Money Manager data.</strong><p>Deleting an account may be blocked if it is linked to transactions or other records. If a change fails, the server error will be shown above.</p></section>
+        </> : <>
+          <section className="section-heading tx-toolbar"><div><h2>Transfer register</h2><p>{transferRows.length} transfers in the selected period · {startDate} to {endDate}</p></div><button className="primary-button" onClick={openTransferCreate}><CirclePlus size={17} /> New transfer</button></section>
+          <section className="stats-grid account-stats">
+            <article className="stat-card primary-card"><span className="stat-label">TRANSFERS SHOWN</span><ArrowLeftRight size={19} /><strong>{transferRows.length}</strong><small>Transfers in the selected date range</small></article>
+            <article className="stat-card"><span className="stat-label">TOTAL TRANSFER VALUE</span><Wallet size={19} /><strong>{money(transferRows.reduce((sum, tx) => sum + (Number(tx.mbCash) || 0), 0))}</strong><small>Sum of transfer records shown</small></article>
+            <article className="stat-card"><span className="stat-label">ACCOUNTS</span><Landmark size={19} /><strong>{init?.assetNames?.length || 0}</strong><small>Available source and destination accounts</small></article>
+            <article className="stat-card"><span className="stat-label">DATA SOURCE</span><Activity size={19} /><strong>Live</strong><small>Fetched from Money Manager</small></article>
+          </section>
+          <section className="panel filter-panel">
+            <div className="filter-row"><label className="compact-field"><span>From</span><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} /></label><label className="compact-field"><span>To</span><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} /></label><button className="secondary-button" onClick={() => void loadTx()} disabled={txLoading}><RefreshCw size={14} className={txLoading ? "spin" : ""} /> Reload transfers</button></div>
+          </section>
+          <section className="panel transactions-panel"><div className="panel-heading"><div><h2>Transfer history</h2><p>{transferRows.length} matching records</p></div></div><div className="table-wrap"><table><thead><tr><th>Date</th><th>From account</th><th>To account</th><th>Description</th><th className="amount">Amount</th><th className="actions-heading">Actions</th></tr></thead><tbody>
+            {transferRows.map(tx => <tr key={tx.id}><td>{String(tx.mbDate || "").slice(0, 10)}</td><td>{accountName(tx.assetId)}</td><td>{accountName(tx.toAssetId || tx.targetAssetId || "")}</td><td><strong className="tx-title">{tx.mbContent || "Account transfer"}</strong>{tx.mbDetailContent && <small className="tx-note">{tx.mbDetailContent}</small>}</td><td className="amount">{money(Number(tx.mbCash) || 0)}</td><td><div className="row-actions"><button className="icon-button" onClick={() => openTransferEdit(tx)} title="Edit transfer" aria-label="Edit transfer"><Pencil size={15} /></button><button className="icon-button danger-action" onClick={() => void deleteTransaction(tx)} title="Delete transfer" aria-label="Delete transfer"><Trash2 size={15} /></button></div></td></tr>)}
+            {!transferRows.length && <tr><td colSpan={6} className="empty-state">{txLoading ? "Loading transfers…" : "No transfers found for this period."}</td></tr>}
+          </tbody></table></div></section>
+          <section className="panel account-note"><strong>Transfers affect both account balances.</strong><p>Editing a transfer may create a new transfer ID in Money Manager rather than updating the existing record. Delete and edit actions affect your real financial data.</p></section>
         </>}
       </section>
+
+      {transferForm && <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget && !transferSaving) setTransferForm(null); }}><section className="transaction-modal account-modal" role="dialog" aria-modal="true" aria-labelledby="transfer-modal-title"><header className="modal-header"><div><div className="eyebrow">TRANSFER DETAILS</div><h2 id="transfer-modal-title">{transferForm.id ? "Edit transfer" : "New transfer"}</h2></div><button className="icon-button" onClick={() => setTransferForm(null)} disabled={transferSaving} aria-label="Close"><X size={18} /></button></header><form onSubmit={e => void saveTransfer(e)} className="transaction-form">
+        <label>Date<input required type="date" value={transferForm.moveDate} onChange={e => setTransferForm(f => f ? { ...f, moveDate: e.target.value } : f)} /></label>
+        <label>Amount (INR)<input required type="number" min="0.01" step="0.01" placeholder="0.00" value={transferForm.moveMoney} onChange={e => setTransferForm(f => f ? { ...f, moveMoney: e.target.value } : f)} /></label>
+        <label>From account<select required value={transferForm.fromAssetId} onChange={e => setTransferForm(f => f ? { ...f, fromAssetId: e.target.value } : f)}><option value="">Select source account</option>{(init?.assetNames || []).map(a => <option key={a.assetId} value={a.assetId} disabled={a.assetId === transferForm.toAssetId}>{a.assetName}</option>)}</select></label>
+        <label>To account<select required value={transferForm.toAssetId} onChange={e => setTransferForm(f => f ? { ...f, toAssetId: e.target.value } : f)}><option value="">Select destination account</option>{(init?.assetNames || []).map(a => <option key={a.assetId} value={a.assetId} disabled={a.assetId === transferForm.fromAssetId}>{a.assetName}</option>)}</select></label>
+        <label className="full-field">Description<input maxLength={200} value={transferForm.moneyContent} onChange={e => setTransferForm(f => f ? { ...f, moneyContent: e.target.value } : f)} placeholder="e.g. Monthly savings transfer" /></label>
+        <label className="full-field">Notes<textarea rows={3} value={transferForm.mbDetailContent} onChange={e => setTransferForm(f => f ? { ...f, mbDetailContent: e.target.value } : f)} placeholder="Optional details" /></label>
+        {transferForm.id && <div className="account-warning full-field">Money Manager may create a new transfer ID when editing. Refresh the transfer list after saving.</div>}
+        <div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setTransferForm(null)} disabled={transferSaving}>Cancel</button><button type="submit" className="primary-button" disabled={transferSaving}>{transferSaving ? <><RefreshCw size={15} className="spin" /> Saving…</> : <><Check size={15} /> {transferForm.id ? "Save transfer changes" : "Record transfer"}</>}</button></div>
+      </form></section></div>}
 
       {accountForm && <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget && !accountSaving) setAccountForm(null); }}><section className="transaction-modal account-modal" role="dialog" aria-modal="true" aria-labelledby="account-modal-title"><header className="modal-header"><div><div className="eyebrow">ACCOUNT DETAILS</div><h2 id="account-modal-title">{accountForm.assetId ? "Edit account" : "Add account"}</h2></div><button className="icon-button" onClick={() => setAccountForm(null)} disabled={accountSaving} aria-label="Close"><X size={18} /></button></header><form onSubmit={e => void saveAccount(e)} className="transaction-form"><label className="full-field">Account group<select required value={accountForm.assetGroupId} onChange={e => setAccountForm(f => f ? { ...f, assetGroupId: e.target.value } : f)}><option value="">Select group</option>{accountGroups.map(group => <option key={group.assetGroupId} value={group.assetGroupId}>{group.assetName}</option>)}</select></label><label className="full-field">Account name<input required maxLength={100} value={accountForm.assetName} onChange={e => setAccountForm(f => f ? { ...f, assetName: e.target.value } : f)} placeholder="e.g. Main savings account" /></label><label className="full-field">Balance (INR)<input required type="number" step="0.01" value={accountForm.assetMoney} onChange={e => setAccountForm(f => f ? { ...f, assetMoney: e.target.value } : f)} /></label><div className="account-warning full-field">Use the balance field carefully. This updates the balance recorded by Money Manager; it does not create a transaction.</div><div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setAccountForm(null)} disabled={accountSaving}>Cancel</button><button type="submit" className="primary-button" disabled={accountSaving || !accountGroups.length}>{accountSaving ? <><RefreshCw size={15} className="spin" /> Saving…</> : <><Check size={15} /> {accountForm.assetId ? "Save changes" : "Create account"}</>}</button></div></form></section></div>}
 
