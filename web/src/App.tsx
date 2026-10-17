@@ -255,7 +255,8 @@ export default function App() {
     finally { setSaving(false); }
   }
   async function deleteTransaction(tx: Transaction) {
-    if (!window.confirm(`Delete this ${tx.inOutCode === "0" ? "income" : "expense"} transaction for ${money(tx.mbCash)}? This cannot be undone.`)) return;
+    const recordType = tx.inOutCode === "0" ? "income" : tx.inOutCode === "1" ? "expense" : "transfer";
+    if (!window.confirm(`Delete this ${recordType} record for ${money(tx.mbCash)}? This cannot be undone.`)) return;
     setError(""); setNotice("");
     try { await api("transaction_delete", { ids: [tx.id] }); await refresh(); setNotice("Transaction deleted."); }
     catch (e) { setError(errorMessage(e)); }
