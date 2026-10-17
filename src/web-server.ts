@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import express from "express";
-import { ZodError } from "zod";
 import { loadConfig } from "./config/index.js";
 import {
   createHttpClient,
@@ -226,20 +225,9 @@ async function main() {
     client = await createClientFor(savedBaseUrl);
     console.log(`Restored Money Manager address: ${savedBaseUrl}`);
   } else {
-    // Keep compatibility with existing .env / .money-manager-mcp.json setups
-    // for the first launch. Once connected in the UI, the local connection
-    // file takes priority and the .env URL is no longer needed.
-    try {
-      const config = await loadConfig();
-      currentBaseUrl = normalizeBaseUrl(config.server.baseUrl);
-      client = await createClientFor(currentBaseUrl);
-    } catch (error) {
-      const missingBaseUrl =
-        error instanceof ZodError &&
-        error.issues.some((issue) => issue.path.join(".") === "server.baseUrl");
-      if (!missingBaseUrl) throw error;
-      console.log("No Money Manager address configured yet. Enter it in the dashboard.");
-    }
+    // The dashboard intentionally does not use MONEY_MANAGER_BASE_URL from
+    // .env. Enter the phone's current address in the UI and save it locally.
+    console.log("No Money Manager address configured yet. Enter it in the dashboard.");
   }
 
   app.listen(PORT, "127.0.0.1", () => {
