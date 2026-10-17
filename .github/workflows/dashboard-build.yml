@@ -23,7 +23,8 @@ jobs:
             web/package-lock.json
 
       - name: Install MCP dependencies
-        run: npm ci
+        # package-lock.json predates the Express version in package.json; npm install reconciles it during CI.
+        run: npm install --no-audit --no-fund
 
       - name: Install dashboard dependencies
         run: npm ci --prefix web
