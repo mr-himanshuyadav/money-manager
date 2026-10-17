@@ -38,10 +38,15 @@ tmp/
 temp/
 *.tmp
 
+# Local dashboard connection settings (contains the phone's current IP/port)
+.money-manager-connection.json
+.money-manager-connection.json.tmp
+
 # Session/cookie storage (if persisted)
 .session/
 cookies.json
 .session-cookies.json
+.session-cookies-*.json
 
 # Exported files with financial data
 *.xls
