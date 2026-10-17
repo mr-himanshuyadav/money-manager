@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { Activity, ArrowDownLeft, Check, Landmark, RefreshCw, Wallet, X } from "lucide-react";
-import type { Account, AccountFormState, AccountsPayload, AccountGroup, DashboardData, FormState, InitPayload, SortOrder, SummaryData, Transaction, TransferFormState } from "./types/index.ts";
+import { Activity, ArrowDownLeft, ArrowLeftRight, Check, Landmark, RefreshCw, Wallet, X } from "lucide-react";
+import type { Account, AccountFormState, AccountsPayload, DashboardData, FormState, InitPayload, SortOrder, SummaryData, Transaction, TransferFormState } from "./types/index.ts";
 import { api, blankForm, errorMessage, iso, money, initialEnd, initialStart } from "./utils/finance.ts";
 import OverviewPage from "./pages/OverviewPage.tsx";
 import TransactionsPage from "./pages/TransactionsPage.tsx";
